@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
 
 class peralatan:
     def __init__(self, id, nama, tersedia, harga):
@@ -63,35 +64,57 @@ def tampilkan_peralatan_tersedia():
         if eq.tersedia > 0:
             print(f"| {eq.id:<3} | {eq.nama:<58} | {eq.tersedia:<16} | Rp {eq.harga:<15.2f} |")
     print("+-----+------------------------------------------------------------+------------------+--------------------+")
+    total_peralatan = sum(eq.tersedia for eq in peralatan_tersedia)
+    print(f"Total jumlah peralatan yang tersedia: {total_peralatan}")
 
-def search_peralatan_nama_rekursif(peralatan_tersedia, nama, index=0):
+def search_peralatan_rekursif(peralatan_tersedia, nama, index=0):
     if index >= len(peralatan_tersedia):
         return False
     eq = peralatan_tersedia[index]
     found = nama.lower() in eq.nama.lower()
-    return found or search_peralatan_nama_rekursif(peralatan_tersedia, nama, index + 1)
+    return found or search_peralatan_rekursif(peralatan_tersedia, nama, index + 1)
 
-def search_peralatan_and_visualize(nama, previous_times=None):
-    if previous_times is None:
-        previous_times = {'Iteratif': {}, 'Rekursif': {}}
+def search_peralatan(nama, waktu_awal=None):
+    if waktu_awal is None:
+        waktu_awal = {'Iteratif': {}, 'Rekursif': {}}
 
-    dataset_sizes = [100, 500, 1000, 5000, 10000, 20000]
+    # Input ukuran dataset dari pengguna
+    all_results = []  
+    try:
+        n = int(input("Masukkan jumlah barang yang akan dicari (n): "))
+        if n <= 0:
+            print("Ukuran dataset (n) harus lebih dari 0.")
+            return
+    except ValueError:
+        print("Input tidak valid! Silakan masukkan angka.")
+        return
     waktu_iteratif = []
     waktu_rekursif = []
 
-    found_iterative = False
-    found_recursive = False
+    found_iteratif = False
+    found_rekursif = False
 
     waktu_iteratif_mulai = time.time()
-    found_iterative = any(nama.lower() in eq.nama.lower() for eq in peralatan_tersedia)
+    found_iteratif = any(nama.lower() in eq.nama.lower() for eq in peralatan_tersedia)
     waktu_iteratif_berakhir = time.time()
 
     waktu_rekursif_mulai = time.time()
-    found_recursive = search_peralatan_nama_rekursif(peralatan_tersedia, nama)
+    found_rekursif = search_peralatan_rekursif(peralatan_tersedia, nama)
     waktu_rekursif_berakhir = time.time()
 
+    waktu_rekursif_mulai = time.time()
+    found_items_rekursif = []
+    for i in range(len(peralatan_tersedia)):
+        if search_peralatan_rekursif(peralatan_tersedia, nama, i):
+            found_items_rekursif.append(peralatan_tersedia[i])
+            break 
+    waktu_rekursif_berakhir = time.time()
+
+    waktu_awal['Iteratif'][nama] = waktu_iteratif_berakhir - waktu_iteratif_mulai
+    waktu_awal['Rekursif'][nama] = waktu_rekursif_berakhir - waktu_rekursif_mulai
+
     print(f"\nHasil Pencarian untuk '{nama}':")
-    if found_iterative or found_recursive:
+    if found_iteratif or found_rekursif:
         print("Peralatan ditemukan!")
         # Display table in the desired format
         print("+-----+------------------------------------------------------------+------------------+--------------------+")
@@ -103,46 +126,57 @@ def search_peralatan_and_visualize(nama, previous_times=None):
         print("+-----+------------------------------------------------------------+------------------+--------------------+")
     else:
         print("Peralatan tidak ditemukan!")
-    # Store execution times
-    previous_times['Iteratif'][nama] = waktu_iteratif_berakhir - waktu_iteratif_mulai
-    previous_times['Rekursif'][nama] = waktu_rekursif_berakhir - waktu_rekursif_mulai
-
-    print("\nWaktu eksekusi (Iteratif):")
-    for item, time_taken in previous_times['Iteratif'].items():
-        print(f"- {item}: {time_taken:.6f} detik")
-
-    print("\nWaktu eksekusi (Rekursif):")
-    for item, time_taken in previous_times['Rekursif'].items():
-        print(f"- {item}: {time_taken:.6f} detik")
 
     # Uji waktu berdasarkan ukuran dataset
-    for size in dataset_sizes:
-        temp_list = peralatan_tersedia * (size // len(peralatan_tersedia))
+    temp_list = peralatan_tersedia * (n // len(peralatan_tersedia))
 
-        # Pencarian Iteratif
-        waktu_iteratif_mulai = time.time()
-        any(nama.lower() in eq.nama.lower() for eq in temp_list)
-        waktu_iteratif_berakhir = time.time()
+    # Pencarian Iteratif
+    waktu_iteratif_mulai = time.time()
+    any(nama.lower() in eq.nama.lower() for eq in temp_list)
+    waktu_iteratif_berakhir = time.time()
+    exec_waktu_iteratif = waktu_iteratif_berakhir - waktu_iteratif_mulai 
 
-        # Pencarian Rekursif
-        waktu_rekursif_mulai = time.time()
-        search_peralatan_nama_rekursif(temp_list, nama)
-        waktu_rekursif_berakhir = time.time()
+    # Pencarian Rekursif
+    waktu_rekursif_mulai = time.time()
+    search_peralatan_rekursif(temp_list, nama)
+    waktu_rekursif_berakhir = time.time()
+    exec_waktu_rekursif = waktu_rekursif_berakhir - waktu_rekursif_mulai  
 
-        waktu_iteratif.append(waktu_iteratif_berakhir - waktu_iteratif_mulai)
-        waktu_rekursif.append(waktu_rekursif_berakhir - waktu_rekursif_mulai)
+    waktu_iteratif.append(exec_waktu_iteratif)  
+    waktu_rekursif.append(exec_waktu_rekursif)
 
+    if waktu_awal:
+        previous_df = pd.DataFrame(waktu_awal)
+        df = pd.DataFrame(all_results, columns=['Ukuran Dataset (n)', 'Waktu Rekursif (s)', 'Waktu Iteratif (s)'])
+        df['nama'] = nama 
+    else:
+        df = pd.DataFrame(all_results, columns=['Ukuran Dataset (n)', 'Waktu Rekursif (s)', 'Waktu Iteratif (s)'])
+        df['nama'] = nama 
+
+    # Simpan hasil untuk setiap run
+    all_results.append((nama, n, exec_waktu_rekursif, exec_waktu_iteratif))
+    # Konversi hasil ke DataFrame - Moved this line *after* data is added to `all_results`
+    df = pd.DataFrame(all_results, columns=['nama', 'Ukuran Dataset (n)', 'Waktu Rekursif (s)', 'Waktu Iteratif (s)'])  
+    # Tampilkan hasil di terminal
+    print(df.to_string(index=False))
     # Plot perbandingan waktu
     plt.figure(figsize=(10, 6))
-    plt.plot(dataset_sizes, waktu_iteratif, label="Iteratif", color='red', marker="o", linestyle="-", linewidth=2)
-    plt.plot(dataset_sizes, waktu_rekursif, label="Rekursif", color='blue', marker="o", linestyle="-", linewidth=2)
+    # Plot Recursive
+    plt.plot(df['Ukuran Dataset (n)'], df['Waktu Rekursif (s)'], label=f'Rekursif - {nama}', color='red', marker='o', linestyle='-', linewidth=2)
+    # Plot Iterative
+    plt.plot(df['Ukuran Dataset (n)'], df['Waktu Iteratif (s)'], label=f'Iteratif - {nama}', color='blue', marker='o', linestyle='-', linewidth=2)
     plt.title("Perbandingan Waktu Eksekusi Pencarian")
-    plt.xlabel("Ukuran Dataset")
+    plt.xlabel("Ukuran Dataset (n)")
     plt.ylabel("Waktu (detik)")
     plt.legend()
     plt.grid()
     plt.tight_layout()
     plt.show()
+    return waktu_awal
+
+    # Panggil fungsi dengan data sebelumnya
+    awal_waktu_pencarian = search_peralatan(nama_pencarian_pertama)  
+    awal_waktu_pencarian = search(nama_pencarian_kedua, waktu_awal)
 
 def display_peralatan_table(peralatan_tersedia):
     """Menampilkan tabel peralatan."""
@@ -168,7 +202,7 @@ def sort_peralatan(by, order):
         print("Kriteria urutkan tidak valid.")
         return
 
-    dataset_sizes = [100, 500, 1000, 5000, 10000, 20000]
+    dataset_sizes = [10, 50, 100, 200, 300, 328]
     waktu_iteratif = []
     waktu_rekursif = []
     reverse = order == 'desc'
@@ -229,14 +263,14 @@ def sort_peralatan(by, order):
     plt.plot(dataset_sizes, waktu_iteratif, label="Iteratif", color='red', marker="o", linestyle="-", linewidth=2)
     plt.plot(dataset_sizes, waktu_rekursif, label="Rekursif", color='blue', marker="o", linestyle="-", linewidth=2)
     plt.title("Perbandingan Waktu Eksekusi Sorting")
-    plt.xlabel("Ukuran Dataset")
+    plt.xlabel("Ukuran Dataset (n)")
     plt.ylabel("Waktu (detik)")
     plt.legend()
     plt.grid()
     plt.tight_layout()
     plt.show()
 
-def rent_peralatan(id_peralatan, jumlah):
+def sewa_peralatan(id_peralatan, jumlah):
     if jumlah <= 0:
         print("Jumlah sewa harus lebih dari 0.")
         return
@@ -250,7 +284,7 @@ def rent_peralatan(id_peralatan, jumlah):
             return
     print("Peralatan tidak tersedia dalam jumlah yang diminta atau ID tidak valid.")
 
-def return_peralatan(id_peralatan, jumlah):
+def mengembalikan_peralatan(id_peralatan, jumlah):
     for sewa in riwayat_sewa:
         if sewa.id_peralatan == id_peralatan and not sewa.sudah_dikembalikan:
             if sewa.jumlah < jumlah:
@@ -296,13 +330,13 @@ def main():
         if pilih == 1:
             tampilkan_peralatan_tersedia() 
         elif pilih == 2:
-            search_number = 1 
+            search_number = 1
             while True:
                 nama = input(f"Pencarian {search_number} (jika tidak maka ketik 'selesai')\nMasukkan nama peralatan yang ingin dicari: ")
                 if nama.lower() == "selesai":
-                    break  
-                previous_search_times = search_peralatan_and_visualize(nama, previous_search_times)  
-                search_number += 1  
+                    break 
+                search_peralatan(nama)  
+                search_number += 1
         elif pilih == 3:
             by = input("Urutkan berdasarkan (ID/nama/harga/tersedia): ").lower()
             order = input("Urutan (asc/desc): ").lower()
@@ -311,14 +345,14 @@ def main():
             try:
                 id = int(input("Masukkan ID peralatan yang ingin disewa: "))
                 qty = int(input("Masukkan jumlah yang ingin disewa: "))
-                rent_peralatan(id, qty)
+                sewa_peralatan(id, qty)
             except ValueError:
                 print("Input tidak valid! ID dan jumlah harus berupa angka.")
         elif pilih == 5:
             try:
                 id = int(input("Masukkan ID peralatan yang ingin dikembalikan: "))
                 qty = int(input("Masukkan jumlah yang ingin dikembalikan: "))
-                return_peralatan(id, qty)
+                mengembalikan_peralatan(id, qty)
             except ValueError:
                 print("Input tidak valid! ID dan jumlah harus berupa angka.")
         elif pilih == 6:
